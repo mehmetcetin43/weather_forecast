@@ -7,4 +7,5 @@ class Env {
   static const String locationByCoordinatesEndpoint = '/locations/v1/cities/geoposition/search';
   static const String currentConditionsEndpoint = '/currentconditions/v1';
   static const String fiveDayForecastEndpoint = '/forecasts/v1/daily/5day';
+  static const String hourlyForecastEndpoint = '/forecasts/v1/hourly/12hour';
 }

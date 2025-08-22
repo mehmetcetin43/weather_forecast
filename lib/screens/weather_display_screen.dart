@@ -19,6 +19,7 @@ class _WeatherDisplayScreenState extends State<WeatherDisplayScreen>
   final AccuWeatherService _accuWeatherService = AccuWeatherService();
   CurrentConditions? _currentConditions;
   List<DailyForecast> _dailyForecasts = [];
+  List<HourlyForecast> _hourlyForecasts = [];
   String? _errorMessage;
   bool _isLoading = true;
   late AnimationController _fadeController;
@@ -66,15 +67,20 @@ class _WeatherDisplayScreenState extends State<WeatherDisplayScreen>
       
       final currentData = await _accuWeatherService.getCurrentConditions(location.key);
       final forecastData = await _accuWeatherService.getFiveDayDailyForecast(location.key);
+      final hourlyData = await _accuWeatherService.getHourlyForecast(location.key);
       
       final current = CurrentConditions.fromJson(currentData);
       final forecasts = (forecastData['DailyForecasts'] as List<dynamic>)
           .map((json) => DailyForecast.fromJson(json))
           .toList();
+      final hourlyForecasts = hourlyData
+          .map((json) => HourlyForecast.fromJson(json))
+          .toList();
 
       setState(() {
         _currentConditions = current;
         _dailyForecasts = forecasts;
+        _hourlyForecasts = hourlyForecasts;
       });
 
       // Start animations
@@ -345,6 +351,18 @@ class _WeatherDisplayScreenState extends State<WeatherDisplayScreen>
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
+        if (_hourlyForecasts.isNotEmpty) ...[
+          Text(
+            'Saatlik Tahmin',
+            style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+              color: Colors.white,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+          const SizedBox(height: 16),
+          _buildHourlyForecast(),
+          const SizedBox(height: 32),
+        ],
         Text(
           '5 Günlük Tahmin',
           style: Theme.of(context).textTheme.headlineSmall?.copyWith(
@@ -359,56 +377,84 @@ class _WeatherDisplayScreenState extends State<WeatherDisplayScreen>
   }
 
   Widget _buildForecastCard(DailyForecast forecast) {
-    final dayIcon = forecast.dayIcon;
-    final nightIcon = forecast.nightIcon;
+    final dayIcon = forecast.dayWeatherIcon;
+    final nightIcon = forecast.nightWeatherIcon;
     
     return Card(
       margin: const EdgeInsets.only(bottom: 12),
       child: Padding(
         padding: const EdgeInsets.all(16.0),
-        child: Row(
+        child: Column(
           children: [
-            Expanded(
-              flex: 2,
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    _formatDate(forecast.date),
-                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                      color: AppTheme.primaryBlue,
-                      fontWeight: FontWeight.w600,
-                    ),
+            Row(
+              children: [
+                Expanded(
+                  flex: 2,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        _formatDate(forecast.date),
+                        style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                          color: AppTheme.primaryBlue,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                      Text(
+                        _formatDay(forecast.date),
+                        style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                          color: Colors.grey.shade600,
+                        ),
+                      ),
+                    ],
                   ),
-                  Text(
-                    _formatDay(forecast.date),
-                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                      color: Colors.grey.shade600,
-                    ),
+                ),
+                Expanded(
+                  flex: 3,
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                    children: [
+                      _buildForecastItem(
+                        WeatherIcons.getWeatherIcon(dayIcon, isDay: true),
+                        'Gündüz',
+                        '${forecast.maxTemperature.round()}°',
+                        WeatherIcons.getWeatherColor(dayIcon, isDay: true),
+                      ),
+                      _buildForecastItem(
+                        WeatherIcons.getWeatherIcon(nightIcon, isDay: false),
+                        'Gece',
+                        '${forecast.minTemperature.round()}°',
+                        WeatherIcons.getWeatherColor(nightIcon, isDay: false),
+                      ),
+                    ],
                   ),
-                ],
-              ),
+                ),
+              ],
             ),
-            Expanded(
-              flex: 3,
-              child: Row(
+            if (forecast.relativeHumidity != null || forecast.windSpeed != null) ...[
+              const SizedBox(height: 12),
+              const Divider(),
+              const SizedBox(height: 8),
+              Row(
                 mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                 children: [
-                  _buildForecastItem(
-                    WeatherIcons.getWeatherIcon(dayIcon, isDay: true),
-                    'Gündüz',
-                    '${forecast.maxTemperature.round()}°',
-                    WeatherIcons.getWeatherColor(dayIcon, isDay: true),
-                  ),
-                  _buildForecastItem(
-                    WeatherIcons.getWeatherIcon(nightIcon, isDay: false),
-                    'Gece',
-                    '${forecast.minTemperature.round()}°',
-                    WeatherIcons.getWeatherColor(nightIcon, isDay: false),
-                  ),
+                  if (forecast.relativeHumidity != null)
+                    _buildDetailItem(
+                      Icons.water_drop,
+                      'Nem',
+                      '%${forecast.relativeHumidity}',
+                      Colors.blue,
+                    ),
+                  if (forecast.windSpeed != null)
+                    _buildDetailItem(
+                      Icons.air,
+                      'Rüzgar',
+                      '${forecast.windSpeed!.round()} km/h',
+                      Colors.grey,
+                    ),
                 ],
               ),
-            ),
+            ],
           ],
         ),
       ),
@@ -437,6 +483,28 @@ class _WeatherDisplayScreenState extends State<WeatherDisplayScreen>
     );
   }
 
+  Widget _buildDetailItem(IconData icon, String label, String value, Color color) {
+    return Column(
+      children: [
+        Icon(icon, color: color, size: 16),
+        const SizedBox(height: 2),
+        Text(
+          label,
+          style: Theme.of(context).textTheme.bodySmall?.copyWith(
+            color: Colors.grey.shade600,
+          ),
+        ),
+        Text(
+          value,
+          style: Theme.of(context).textTheme.bodySmall?.copyWith(
+            color: color,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+      ],
+    );
+  }
+
   String _formatDate(DateTime date) {
     return '${date.day}/${date.month}';
   }
@@ -444,5 +512,75 @@ class _WeatherDisplayScreenState extends State<WeatherDisplayScreen>
   String _formatDay(DateTime date) {
     final days = ['Pzt', 'Sal', 'Çar', 'Per', 'Cum', 'Cmt', 'Paz'];
     return days[date.weekday - 1];
+  }
+
+  Widget _buildHourlyForecast() {
+    return SizedBox(
+      height: 140,
+      child: ListView.builder(
+        scrollDirection: Axis.horizontal,
+        itemCount: _hourlyForecasts.length,
+        itemBuilder: (context, index) {
+          final forecast = _hourlyForecasts[index];
+          return _buildHourlyCard(forecast);
+        },
+      ),
+    );
+  }
+
+  Widget _buildHourlyCard(HourlyForecast forecast) {
+    return Card(
+      margin: const EdgeInsets.only(right: 12),
+      child: Container(
+        width: 100,
+        padding: const EdgeInsets.all(12),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Text(
+              _formatHour(forecast.dateTime),
+              style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                color: Colors.grey.shade600,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Icon(
+              WeatherIcons.getWeatherIcon(forecast.weatherIcon, isDay: forecast.isDayTime),
+              size: 32,
+              color: WeatherIcons.getWeatherColor(forecast.weatherIcon, isDay: forecast.isDayTime),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              '${forecast.temperature.round()}°',
+              style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                color: WeatherIcons.getTemperatureColor(forecast.temperature),
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              '%${forecast.relativeHumidity}',
+              style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                color: Colors.blue,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+            const SizedBox(height: 2),
+            Text(
+              '${forecast.windSpeed.round()} km/h',
+              style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                color: Colors.grey,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  String _formatHour(DateTime dateTime) {
+    return '${dateTime.hour.toString().padLeft(2, '0')}:00';
   }
 }

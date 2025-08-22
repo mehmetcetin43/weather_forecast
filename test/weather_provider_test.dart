@@ -25,6 +25,8 @@ void main() {
         localizedName: 'Test City',
         administrativeArea: 'Test Area',
         country: 'Test Country',
+        latitude: 41.0082,
+        longitude: 28.9784,
       );
 
       weatherProvider.setSelectedLocation(location);
@@ -40,6 +42,8 @@ void main() {
         localizedName: 'Test City',
         administrativeArea: 'Test Area',
         country: 'Test Country',
+        latitude: 41.0082,
+        longitude: 28.9784,
       );
       weatherProvider.setSelectedLocation(location);
 

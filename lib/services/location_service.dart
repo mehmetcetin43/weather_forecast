@@ -1,14 +1,14 @@
-import 'package:geolocator/geolocator.dart';
+import 'package:geolocator/geolocator.dart' as geolocator;
 import 'package:weather_forecast/utils/exceptions.dart';
 
 class LocationService {
   /// Konum izinlerini kontrol eder ve gerekirse izin ister
   static Future<bool> checkAndRequestPermissions() async {
     bool serviceEnabled;
-    LocationPermission permission;
+    geolocator.LocationPermission permission;
 
     // Konum servislerinin açık olup olmadığını kontrol et
-    serviceEnabled = await Geolocator.isLocationServiceEnabled();
+    serviceEnabled = await geolocator.Geolocator.isLocationServiceEnabled();
     if (!serviceEnabled) {
       throw LocationException(
         'Konum servisleri kapalı. Lütfen GPS\'i açın.',
@@ -17,10 +17,10 @@ class LocationService {
     }
 
     // Konum izinlerini kontrol et
-    permission = await Geolocator.checkPermission();
-    if (permission == LocationPermission.denied) {
-      permission = await Geolocator.requestPermission();
-      if (permission == LocationPermission.denied) {
+    permission = await geolocator.Geolocator.checkPermission();
+    if (permission == geolocator.LocationPermission.denied) {
+      permission = await geolocator.Geolocator.requestPermission();
+      if (permission == geolocator.LocationPermission.denied) {
         throw LocationException(
           'Konum izni reddedildi.',
           code: 'LOCATION_PERMISSION_DENIED',
@@ -28,7 +28,7 @@ class LocationService {
       }
     }
 
-    if (permission == LocationPermission.deniedForever) {
+    if (permission == geolocator.LocationPermission.deniedForever) {
       throw LocationException(
         'Konum izinleri kalıcı olarak reddedildi. Ayarlardan izin verin.',
         code: 'LOCATION_PERMISSION_DENIED_FOREVER',
@@ -39,14 +39,14 @@ class LocationService {
   }
 
   /// Mevcut konumu alır
-  static Future<Position> getCurrentPosition() async {
+  static Future<geolocator.Position> getCurrentPosition() async {
     try {
       // İzinleri kontrol et
       await checkAndRequestPermissions();
 
       // Mevcut konumu al
-      return await Geolocator.getCurrentPosition(
-        desiredAccuracy: LocationAccuracy.high,
+      return await geolocator.Geolocator.getCurrentPosition(
+        desiredAccuracy: geolocator.LocationAccuracy.high,
         timeLimit: const Duration(seconds: 10),
       );
     } on LocationException {
@@ -61,10 +61,10 @@ class LocationService {
   }
 
   /// Son bilinen konumu alır (daha hızlı)
-  static Future<Position?> getLastKnownPosition() async {
+  static Future<geolocator.Position?> getLastKnownPosition() async {
     try {
       await checkAndRequestPermissions();
-      return await Geolocator.getLastKnownPosition();
+      return await geolocator.Geolocator.getLastKnownPosition();
     } catch (e) {
       // Son bilinen konum yoksa null döndür
       return null;
@@ -78,7 +78,7 @@ class LocationService {
     double endLatitude,
     double endLongitude,
   ) {
-    return Geolocator.distanceBetween(
+    return geolocator.Geolocator.distanceBetween(
       startLatitude,
       startLongitude,
       endLatitude,

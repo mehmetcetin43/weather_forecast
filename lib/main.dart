@@ -124,9 +124,11 @@ class _MainWeatherScreenState extends State<MainWeatherScreen>
               child: Column(
                 children: [
                   _buildHeader(),
-                  const Spacer(),
-                  _buildMainContent(),
-                  const Spacer(),
+                  const SizedBox(height: 16),
+                  Expanded(
+                    child: _buildMainContent(),
+                  ),
+                  const SizedBox(height: 16),
                   _buildActionButtons(),
                 ],
               ),

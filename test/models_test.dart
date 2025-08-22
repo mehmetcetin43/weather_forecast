@@ -108,10 +108,10 @@ void main() {
 
       expect(forecast.minTemperature, equals(15.0));
       expect(forecast.maxTemperature, equals(25.0));
-      expect(forecast.dayIconPhrase, equals('Güneşli'));
-      expect(forecast.nightIconPhrase, equals('Açık'));
-      expect(forecast.dayIcon, equals(1));
-      expect(forecast.nightIcon, equals(33));
+      expect(forecast.dayWeatherText, equals('Güneşli'));
+      expect(forecast.nightWeatherText, equals('Açık'));
+      expect(forecast.dayWeatherIcon, equals(1));
+      expect(forecast.nightWeatherIcon, equals(33));
       expect(forecast.precipitationProbability, equals(10.0));
     });
 
@@ -122,11 +122,11 @@ void main() {
 
       expect(forecast.minTemperature, equals(0.0));
       expect(forecast.maxTemperature, equals(0.0));
-      expect(forecast.dayIconPhrase, equals(''));
-      expect(forecast.nightIconPhrase, equals(''));
-      expect(forecast.dayIcon, equals(1));
-      expect(forecast.nightIcon, equals(1));
-      expect(forecast.precipitationProbability, equals(0.0));
+      expect(forecast.dayWeatherText, equals(''));
+      expect(forecast.nightWeatherText, equals(''));
+      expect(forecast.dayWeatherIcon, equals(1));
+      expect(forecast.nightWeatherIcon, equals(33));
+      expect(forecast.precipitationProbability, isNull);
     });
   });
 }

@@ -58,6 +58,15 @@ class AccuWeatherService {
     return response as Map<String, dynamic>;
   }
 
+  Future<List<dynamic>> getHourlyForecast(String locationKey) async {
+    final response = await _makeApiCall(
+      '${Env.accuWeatherBaseUrl}${Env.hourlyForecastEndpoint}/$locationKey?apikey=${Env.accuWeatherApiKey}&language=tr-tr&details=true&metric=true',
+      'Saatlik tahmin verisi alınamadı',
+    );
+    
+    return response as List<dynamic>;
+  }
+
 
 
   Future<dynamic> _makeApiCall(String url, String errorMessage) async {

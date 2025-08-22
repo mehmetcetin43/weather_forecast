@@ -1,5 +1,5 @@
 import 'package:flutter/foundation.dart';
-import 'package:geolocator/geolocator.dart' show Position;
+import 'package:geolocator/geolocator.dart' as geolocator;
 import 'package:weather_forecast/services/accuweather_service.dart';
 import 'package:weather_forecast/services/location_service.dart';
 import 'package:weather_forecast/models/weather_models.dart';
@@ -12,6 +12,7 @@ class WeatherProvider with ChangeNotifier {
   Location? _selectedLocation;
   CurrentConditions? _currentConditions;
   List<DailyForecast> _dailyForecasts = [];
+  List<HourlyForecast> _hourlyForecasts = [];
   bool _isLoading = false;
   String? _errorMessage;
   
@@ -19,6 +20,7 @@ class WeatherProvider with ChangeNotifier {
   Location? get selectedLocation => _selectedLocation;
   CurrentConditions? get currentConditions => _currentConditions;
   List<DailyForecast> get dailyForecasts => _dailyForecasts;
+  List<HourlyForecast> get hourlyForecasts => _hourlyForecasts;
   bool get isLoading => _isLoading;
   String? get errorMessage => _errorMessage;
   bool get hasData => _currentConditions != null && _dailyForecasts.isNotEmpty;
@@ -53,14 +55,19 @@ class WeatherProvider with ChangeNotifier {
     try {
       final currentData = await _accuWeatherService.getCurrentConditions(_selectedLocation!.key);
       final forecastData = await _accuWeatherService.getFiveDayDailyForecast(_selectedLocation!.key);
+      final hourlyData = await _accuWeatherService.getHourlyForecast(_selectedLocation!.key);
       
       final current = CurrentConditions.fromJson(currentData);
       final forecasts = (forecastData['DailyForecasts'] as List<dynamic>)
           .map((json) => DailyForecast.fromJson(json))
           .toList();
+      final hourlyForecasts = hourlyData
+          .map((json) => HourlyForecast.fromJson(json))
+          .toList();
 
       _currentConditions = current;
       _dailyForecasts = forecasts;
+      _hourlyForecasts = hourlyForecasts;
       _errorMessage = null;
     } catch (e) {
       _handleError(e);
@@ -98,12 +105,10 @@ class WeatherProvider with ChangeNotifier {
 
     try {
       // Önce son bilinen konumu dene (daha hızlı)
-      Position? position = await LocationService.getLastKnownPosition();
+      geolocator.Position? position = await LocationService.getLastKnownPosition();
       
       // Son bilinen konum yoksa yeni konum al
-      if (position == null) {
-        position = await LocationService.getCurrentPosition();
-      }
+      position ??= await LocationService.getCurrentPosition();
       
       await fetchWeatherDataForCoordinates(position.latitude, position.longitude);
     } catch (e) {
@@ -125,6 +130,7 @@ class WeatherProvider with ChangeNotifier {
     _selectedLocation = null;
     _currentConditions = null;
     _dailyForecasts = [];
+    _hourlyForecasts = [];
     _errorMessage = null;
     notifyListeners();
   }
@@ -157,6 +163,7 @@ class WeatherProvider with ChangeNotifier {
     _errorMessage = errorMessage;
     _currentConditions = null;
     _dailyForecasts = [];
+    _hourlyForecasts = [];
     notifyListeners();
   }
 }
