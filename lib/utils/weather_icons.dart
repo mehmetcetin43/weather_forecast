@@ -2,7 +2,12 @@ import 'package:flutter/material.dart';
 
 class WeatherIcons {
   static IconData getWeatherIcon(int iconCode, {bool isDay = true}) {
-    // AccuWeather icon codes mapping
+    // OpenWeatherMap icon codes (200-899)
+    if (iconCode >= 200 && iconCode <= 899) {
+      return _getOpenWeatherIcon(iconCode, isDay);
+    }
+    
+    // AccuWeather icon codes mapping (1-44)
     switch (iconCode) {
       case 1: // Sunny
       case 2: // Mostly Sunny
@@ -99,8 +104,66 @@ class WeatherIcons {
     }
   }
 
+  static IconData _getOpenWeatherIcon(int iconCode, bool isDay) {
+    // Thunderstorm (200-299)
+    if (iconCode >= 200 && iconCode < 300) {
+      return Icons.thunderstorm;
+    }
+    
+    // Drizzle (300-399)
+    if (iconCode >= 300 && iconCode < 400) {
+      return Icons.grain;
+    }
+    
+    // Rain (400-499)
+    if (iconCode >= 400 && iconCode < 500) {
+      return Icons.water_drop;
+    }
+    
+    // Snow (500-599)
+    if (iconCode >= 500 && iconCode < 600) {
+      return Icons.ac_unit;
+    }
+    
+    // Atmosphere (fog, mist, etc.) (600-699)
+    if (iconCode >= 600 && iconCode < 700) {
+      return Icons.cloud;
+    }
+    
+    // Clear (700-799)
+    if (iconCode >= 700 && iconCode < 800) {
+      return isDay ? Icons.wb_sunny : Icons.nightlight_round;
+    }
+    
+    // Clear sky (800)
+    if (iconCode == 800) {
+      return isDay ? Icons.wb_sunny : Icons.nightlight_round;
+    }
+    
+    // Clouds (801-899)
+    if (iconCode >= 801 && iconCode <= 899) {
+      if (iconCode == 801) {
+        // Few clouds
+        return isDay ? Icons.wb_sunny : Icons.nightlight_round;
+      } else if (iconCode == 802) {
+        // Scattered clouds
+        return isDay ? Icons.wb_sunny : Icons.nightlight_round;
+      } else {
+        // Broken/Overcast clouds
+        return Icons.cloud;
+      }
+    }
+    
+    return Icons.cloud;
+  }
+
   static Color getWeatherColor(int iconCode, {bool isDay = true}) {
-    // Weather condition based colors
+    // OpenWeatherMap colors (200-899)
+    if (iconCode >= 200 && iconCode <= 899) {
+      return _getOpenWeatherColor(iconCode, isDay);
+    }
+    
+    // AccuWeather colors (1-44)
     if (iconCode >= 1 && iconCode <= 3) {
       return isDay ? Colors.orange : Colors.indigo; // Sunny/Clear
     } else if (iconCode >= 4 && iconCode <= 8) {
@@ -122,6 +185,54 @@ class WeatherIcons {
     }
   }
 
+  static Color _getOpenWeatherColor(int iconCode, bool isDay) {
+    // Thunderstorm (200-299)
+    if (iconCode >= 200 && iconCode < 300) {
+      return Colors.purple;
+    }
+    
+    // Drizzle (300-399)
+    if (iconCode >= 300 && iconCode < 400) {
+      return Colors.blue;
+    }
+    
+    // Rain (400-499)
+    if (iconCode >= 400 && iconCode < 500) {
+      return Colors.blue;
+    }
+    
+    // Snow (500-599)
+    if (iconCode >= 500 && iconCode < 600) {
+      return Colors.cyan;
+    }
+    
+    // Atmosphere (fog, mist, etc.) (600-699)
+    if (iconCode >= 600 && iconCode < 700) {
+      return Colors.grey;
+    }
+    
+    // Clear (700-799)
+    if (iconCode >= 700 && iconCode < 800) {
+      return isDay ? Colors.orange : Colors.indigo;
+    }
+    
+    // Clear sky (800)
+    if (iconCode == 800) {
+      return isDay ? Colors.orange : Colors.indigo;
+    }
+    
+    // Clouds (801-899)
+    if (iconCode >= 801 && iconCode <= 899) {
+      if (iconCode == 801 || iconCode == 802) {
+        return isDay ? Colors.orange : Colors.indigo; // Few/Scattered clouds
+      } else {
+        return Colors.grey; // Broken/Overcast clouds
+      }
+    }
+    
+    return Colors.grey; // Default
+  }
+
   static Color getTemperatureColor(double temperature) {
     if (temperature >= 30) {
       return Colors.red;
@@ -137,6 +248,12 @@ class WeatherIcons {
   }
 
   static String getWeatherDescription(int iconCode) {
+    // OpenWeatherMap descriptions (200-899)
+    if (iconCode >= 200 && iconCode <= 899) {
+      return _getOpenWeatherDescription(iconCode);
+    }
+    
+    // AccuWeather descriptions (1-44)
     switch (iconCode) {
       case 1: return 'Güneşli';
       case 2: return 'Çoğunlukla Güneşli';
@@ -180,5 +297,85 @@ class WeatherIcons {
       case 44: return 'Çoğunlukla Bulutlu ve Karlı';
       default: return 'Bilinmeyen';
     }
+  }
+
+  static String _getOpenWeatherDescription(int iconCode) {
+    // Thunderstorm (200-299)
+    if (iconCode >= 200 && iconCode < 300) {
+      if (iconCode >= 200 && iconCode < 210) return 'Gök Gürültülü Fırtına';
+      if (iconCode >= 210 && iconCode < 220) return 'Hafif Gök Gürültülü';
+      if (iconCode >= 220 && iconCode < 230) return 'Gök Gürültülü Sağanak';
+      if (iconCode >= 230 && iconCode < 240) return 'Gök Gürültülü Kar';
+      return 'Gök Gürültülü';
+    }
+    
+    // Drizzle (300-399)
+    if (iconCode >= 300 && iconCode < 400) {
+      if (iconCode == 300) return 'Hafif Sağanak';
+      if (iconCode == 301) return 'Sağanak';
+      if (iconCode == 302) return 'Güçlü Sağanak';
+      if (iconCode >= 310 && iconCode < 320) return 'Sağanak Yağmur';
+      if (iconCode >= 320 && iconCode < 330) return 'Güçlü Sağanak Yağmur';
+      if (iconCode >= 330 && iconCode < 340) return 'Sağanak Kar';
+      if (iconCode >= 340 && iconCode < 350) return 'Güçlü Sağanak Kar';
+      return 'Sağanak';
+    }
+    
+    // Rain (400-499)
+    if (iconCode >= 400 && iconCode < 500) {
+      if (iconCode == 400) return 'Hafif Yağmur';
+      if (iconCode == 401) return 'Yağmur';
+      if (iconCode == 402) return 'Güçlü Yağmur';
+      if (iconCode >= 410 && iconCode < 420) return 'Sağanak Yağmur';
+      if (iconCode >= 420 && iconCode < 430) return 'Güçlü Sağanak Yağmur';
+      if (iconCode >= 430 && iconCode < 440) return 'Yağmur ve Kar';
+      if (iconCode >= 440 && iconCode < 450) return 'Güçlü Yağmur ve Kar';
+      return 'Yağmurlu';
+    }
+    
+    // Snow (500-599)
+    if (iconCode >= 500 && iconCode < 600) {
+      if (iconCode == 500) return 'Hafif Kar';
+      if (iconCode == 501) return 'Kar';
+      if (iconCode == 502) return 'Güçlü Kar';
+      if (iconCode >= 510 && iconCode < 520) return 'Kar Taneleri';
+      if (iconCode >= 520 && iconCode < 530) return 'Güçlü Kar Taneleri';
+      if (iconCode >= 530 && iconCode < 540) return 'Dolu';
+      if (iconCode >= 540 && iconCode < 550) return 'Güçlü Dolu';
+      return 'Karlı';
+    }
+    
+    // Atmosphere (fog, mist, etc.) (600-699)
+    if (iconCode >= 600 && iconCode < 700) {
+      if (iconCode == 600) return 'Hafif Sis';
+      if (iconCode == 601) return 'Sisli';
+      if (iconCode == 602) return 'Yoğun Sis';
+      if (iconCode >= 610 && iconCode < 620) return 'Puslu';
+      if (iconCode >= 620 && iconCode < 630) return 'Dumanlı';
+      if (iconCode >= 630 && iconCode < 640) return 'Tozlu';
+      if (iconCode >= 640 && iconCode < 650) return 'Kum Fırtınası';
+      return 'Sisli';
+    }
+    
+    // Clear (700-799)
+    if (iconCode >= 700 && iconCode < 800) {
+      return 'Açık';
+    }
+    
+    // Clear sky (800)
+    if (iconCode == 800) {
+      return 'Açık';
+    }
+    
+    // Clouds (801-899)
+    if (iconCode >= 801 && iconCode <= 899) {
+      if (iconCode == 801) return 'Az Bulutlu';
+      if (iconCode == 802) return 'Parçalı Bulutlu';
+      if (iconCode == 803) return 'Çoğunlukla Bulutlu';
+      if (iconCode == 804) return 'Kapalı';
+      return 'Bulutlu';
+    }
+    
+    return 'Bilinmeyen';
   }
 }

@@ -1,5 +1,3 @@
-import 'package:flutter/material.dart';
-
 /// Güvenli int dönüşümü için yardımcı fonksiyon
 int? _safeIntParse(dynamic value) {
   if (value == null) return null;
@@ -84,11 +82,11 @@ class CurrentConditions {
   final String weatherText;
   final int relativeHumidity;
   final double windSpeed;
+  final String? windDirection;
   final int weatherIcon;
   final bool isDayTime;
   final DateTime observationDateTime;
   final double? uvIndex;
-  final String? windDirection;
   final double? visibility;
   final double? pressure;
 
@@ -98,11 +96,11 @@ class CurrentConditions {
     required this.weatherText,
     required this.relativeHumidity,
     required this.windSpeed,
+    this.windDirection,
     required this.weatherIcon,
     required this.isDayTime,
     required this.observationDateTime,
     this.uvIndex,
-    this.windDirection,
     this.visibility,
     this.pressure,
   });
@@ -114,11 +112,11 @@ class CurrentConditions {
       weatherText: json['WeatherText'] ?? '',
       relativeHumidity: _safeIntParse(json['RelativeHumidity']) ?? 0,
       windSpeed: json['Wind']?['Speed']?['Metric']?['Value']?.toDouble() ?? 0.0,
+      windDirection: json['Wind']?['Direction']?['Localized'],
       weatherIcon: _safeIntParse(json['WeatherIcon']) ?? 1,
       isDayTime: json['IsDayTime'] ?? true,
       observationDateTime: DateTime.parse(json['LocalObservationDateTime'] ?? DateTime.now().toIso8601String()),
       uvIndex: _safeDoubleParse(json['UVIndex']),
-      windDirection: json['Wind']?['Direction']?['Localized'],
       visibility: json['Visibility']?['Metric']?['Value']?.toDouble(),
       pressure: json['Pressure']?['Metric']?['Value']?.toDouble(),
     );
@@ -132,7 +130,7 @@ class CurrentConditions {
       'RelativeHumidity': relativeHumidity,
       'Wind': {
         'Speed': {'Metric': {'Value': windSpeed}},
-        'Direction': {'Localized': windDirection},
+        'Direction': windDirection != null ? {'Localized': windDirection} : null,
       },
       'WeatherIcon': weatherIcon,
       'IsDayTime': isDayTime,
@@ -216,11 +214,11 @@ class HourlyForecast {
 
 class DailyForecast {
   final DateTime date;
-  final double minTemperature;
   final double maxTemperature;
+  final double minTemperature;
   final String dayWeatherText;
-  final int dayWeatherIcon;
   final String nightWeatherText;
+  final int dayWeatherIcon;
   final int nightWeatherIcon;
   final double? precipitationProbability;
   final double? windSpeed;
@@ -229,11 +227,11 @@ class DailyForecast {
 
   DailyForecast({
     required this.date,
-    required this.minTemperature,
     required this.maxTemperature,
+    required this.minTemperature,
     required this.dayWeatherText,
-    required this.dayWeatherIcon,
     required this.nightWeatherText,
+    required this.dayWeatherIcon,
     required this.nightWeatherIcon,
     this.precipitationProbability,
     this.windSpeed,
@@ -242,18 +240,22 @@ class DailyForecast {
   });
 
   factory DailyForecast.fromJson(Map<String, dynamic> json) {
+    final temp = json['Temperature'] ?? {};
+    final day = json['Day'] ?? {};
+    final night = json['Night'] ?? {};
+    
     return DailyForecast(
       date: DateTime.parse(json['Date'] ?? DateTime.now().toIso8601String()),
-      minTemperature: json['Temperature']?['Minimum']?['Value']?.toDouble() ?? 0.0,
-      maxTemperature: json['Temperature']?['Maximum']?['Value']?.toDouble() ?? 0.0,
-      dayWeatherText: json['Day']?['IconPhrase'] ?? '',
-      dayWeatherIcon: _safeIntParse(json['Day']?['Icon']) ?? 1,
-      nightWeatherText: json['Night']?['IconPhrase'] ?? '',
-      nightWeatherIcon: _safeIntParse(json['Night']?['Icon']) ?? 33,
-      precipitationProbability: json['Day']?['PrecipitationProbability']?.toDouble(),
-      windSpeed: json['Day']?['Wind']?['Speed']?['Value']?.toDouble(),
-      windDirection: json['Day']?['Wind']?['Direction']?['Localized'],
-      relativeHumidity: _safeIntParse(json['Day']?['RelativeHumidity']),
+      maxTemperature: temp['Maximum']?['Value']?.toDouble() ?? 0.0,
+      minTemperature: temp['Minimum']?['Value']?.toDouble() ?? 0.0,
+      dayWeatherText: day['IconPhrase'] ?? '',
+      nightWeatherText: night['IconPhrase'] ?? '',
+      dayWeatherIcon: _safeIntParse(day['Icon']) ?? 1,
+      nightWeatherIcon: _safeIntParse(night['Icon']) ?? 33,
+      precipitationProbability: day['PrecipitationProbability']?.toDouble(),
+      windSpeed: day['Wind']?['Speed']?['Value']?.toDouble(),
+      windDirection: day['Wind']?['Direction']?['Localized'],
+      relativeHumidity: _safeIntParse(day['RelativeHumidity']),
     );
   }
 
@@ -261,8 +263,8 @@ class DailyForecast {
     return {
       'Date': date.toIso8601String(),
       'Temperature': {
-        'Minimum': {'Value': minTemperature},
         'Maximum': {'Value': maxTemperature},
+        'Minimum': {'Value': minTemperature},
       },
       'Day': {
         'IconPhrase': dayWeatherText,
@@ -270,7 +272,7 @@ class DailyForecast {
         'PrecipitationProbability': precipitationProbability,
         'Wind': windSpeed != null ? {
           'Speed': {'Value': windSpeed},
-          'Direction': {'Localized': windDirection},
+          'Direction': windDirection != null ? {'Localized': windDirection} : null,
         } : null,
         'RelativeHumidity': relativeHumidity,
       },

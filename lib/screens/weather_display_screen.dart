@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:weather_forecast/services/accuweather_service.dart';
+import 'package:weather_forecast/services/api_manager.dart';
 import 'package:weather_forecast/models/weather_models.dart';
+import 'package:weather_forecast/models/openweather_models.dart';
 import 'package:weather_forecast/utils/weather_icons.dart';
 import 'package:weather_forecast/theme/app_theme.dart';
 import 'package:weather_forecast/utils/exceptions.dart';
@@ -16,10 +17,9 @@ class WeatherDisplayScreen extends StatefulWidget {
 
 class _WeatherDisplayScreenState extends State<WeatherDisplayScreen>
     with TickerProviderStateMixin {
-  final AccuWeatherService _accuWeatherService = AccuWeatherService();
-  CurrentConditions? _currentConditions;
-  List<DailyForecast> _dailyForecasts = [];
-  List<HourlyForecast> _hourlyForecasts = [];
+  dynamic _currentConditions;
+  List<dynamic> _dailyForecasts = [];
+  List<dynamic> _hourlyForecasts = [];
   String? _errorMessage;
   bool _isLoading = true;
   late AnimationController _fadeController;
@@ -63,25 +63,66 @@ class _WeatherDisplayScreenState extends State<WeatherDisplayScreen>
     });
 
     try {
-      final location = Location.fromJson(widget.location);
+      // Location'ı API Manager ile parse et
+      final location = ApiManager.locationFromJson(widget.location);
+      final locationKey = ApiManager.getLocationKey(location);
       
-      final currentData = await _accuWeatherService.getCurrentConditions(location.key);
-      final forecastData = await _accuWeatherService.getFiveDayDailyForecast(location.key);
-      final hourlyData = await _accuWeatherService.getHourlyForecast(location.key);
+      // API Manager üzerinden veri çek
+      final currentData = await ApiManager.getCurrentWeather(locationKey);
+      final forecastData = await ApiManager.getFiveDayForecast(locationKey);
+      final hourlyData = await ApiManager.getHourlyForecast(locationKey);
       
-      final current = CurrentConditions.fromJson(currentData);
-      final forecasts = (forecastData['DailyForecasts'] as List<dynamic>)
-          .map((json) => DailyForecast.fromJson(json))
-          .toList();
-      final hourlyForecasts = hourlyData
-          .map((json) => HourlyForecast.fromJson(json))
-          .toList();
+      // API'ye göre model objelerini oluştur
+      if (ApiManager.activeApiName == 'AccuWeather') {
+        final current = CurrentConditions.fromJson(currentData);
+        final forecasts = (forecastData['DailyForecasts'] as List<dynamic>)
+            .map((json) => DailyForecast.fromJson(json))
+            .toList();
+        final hourlyForecasts = hourlyData
+            .map((json) => HourlyForecast.fromJson(json))
+            .toList();
 
-      setState(() {
-        _currentConditions = current;
-        _dailyForecasts = forecasts;
-        _hourlyForecasts = hourlyForecasts;
-      });
+        setState(() {
+          _currentConditions = current;
+          _dailyForecasts = forecasts;
+          _hourlyForecasts = hourlyForecasts;
+        });
+             } else {
+         // OpenWeatherMap
+         final current = OpenWeatherCurrentConditions.fromJson(currentData);
+         
+         // OpenWeatherMap forecast endpoint'i saatlik veri döndürür
+         // Günlük veriyi 12:00 saatlerinden çıkaralım
+         final allForecasts = (forecastData['list'] as List<dynamic>);
+         final dailyForecasts = <Map<String, dynamic>>[];
+         
+         // Her gün için 12:00 saatindeki veriyi al
+         final seenDays = <String>{};
+         for (final item in allForecasts) {
+           final dtTxt = item['dt_txt'] as String;
+           final date = dtTxt.split(' ')[0]; // YYYY-MM-DD
+           
+           if (dtTxt.contains('12:00:00') && !seenDays.contains(date)) {
+             seenDays.add(date);
+             dailyForecasts.add(Map<String, dynamic>.from(item));
+             
+             if (dailyForecasts.length >= 5) break;
+           }
+         }
+         
+         final forecasts = dailyForecasts
+             .map((json) => OpenWeatherDailyForecast.fromJson(json))
+             .toList();
+         final hourlyForecasts = hourlyData
+             .map((json) => OpenWeatherHourlyForecast.fromJson(json))
+             .toList();
+
+         setState(() {
+           _currentConditions = current;
+           _dailyForecasts = forecasts;
+           _hourlyForecasts = hourlyForecasts;
+         });
+       }
 
       // Start animations
       _fadeController.forward();
@@ -109,9 +150,9 @@ class _WeatherDisplayScreenState extends State<WeatherDisplayScreen>
 
   @override
   Widget build(BuildContext context) {
-    final location = Location.fromJson(widget.location);
-    final weatherIcon = _currentConditions?.weatherIcon ?? 1;
-    final isDay = _currentConditions?.isDayTime ?? true;
+    final location = ApiManager.locationFromJson(widget.location);
+    final weatherIcon = _getWeatherIcon();
+    final isDay = _getIsDayTime();
     
     return Scaffold(
       body: Container(
@@ -127,6 +168,24 @@ class _WeatherDisplayScreenState extends State<WeatherDisplayScreen>
         ),
       ),
     );
+  }
+
+  int _getWeatherIcon() {
+    if (_currentConditions == null) return 1;
+    if (ApiManager.activeApiName == 'AccuWeather') {
+      return (_currentConditions as CurrentConditions).weatherIcon;
+    } else {
+      return (_currentConditions as OpenWeatherCurrentConditions).weatherIcon;
+    }
+  }
+
+  bool _getIsDayTime() {
+    if (_currentConditions == null) return true;
+    if (ApiManager.activeApiName == 'AccuWeather') {
+      return (_currentConditions as CurrentConditions).isDayTime;
+    } else {
+      return (_currentConditions as OpenWeatherCurrentConditions).isDayTime;
+    }
   }
 
   Widget _buildLoadingScreen() {
@@ -187,7 +246,7 @@ class _WeatherDisplayScreenState extends State<WeatherDisplayScreen>
     );
   }
 
-  Widget _buildWeatherContent(Location location, int weatherIcon, bool isDay) {
+  Widget _buildWeatherContent(dynamic location, int weatherIcon, bool isDay) {
     return RefreshIndicator(
       onRefresh: _fetchWeatherData,
       color: Colors.white,
@@ -217,7 +276,7 @@ class _WeatherDisplayScreenState extends State<WeatherDisplayScreen>
     );
   }
 
-  Widget _buildLocationHeader(Location location) {
+  Widget _buildLocationHeader(dynamic location) {
     return Card(
       child: Padding(
         padding: const EdgeInsets.all(20.0),
@@ -230,14 +289,14 @@ class _WeatherDisplayScreenState extends State<WeatherDisplayScreen>
             ),
             const SizedBox(height: 8),
             Text(
-              location.localizedName,
+              _getLocationName(location),
               style: Theme.of(context).textTheme.headlineMedium?.copyWith(
                 color: AppTheme.primaryBlue,
                 fontWeight: FontWeight.bold,
               ),
             ),
             Text(
-              '${location.administrativeArea}, ${location.country}',
+              _getLocationSubtitle(location),
               style: Theme.of(context).textTheme.bodyLarge?.copyWith(
                 color: Colors.grey.shade600,
               ),
@@ -248,10 +307,30 @@ class _WeatherDisplayScreenState extends State<WeatherDisplayScreen>
     );
   }
 
+  String _getLocationName(dynamic location) {
+    if (ApiManager.activeApiName == 'AccuWeather') {
+      return (location as Location).localizedName;
+    } else {
+      return (location as OpenWeatherLocation).name;
+    }
+  }
+
+  String _getLocationSubtitle(dynamic location) {
+    if (ApiManager.activeApiName == 'AccuWeather') {
+      final accuLocation = location as Location;
+      return '${accuLocation.administrativeArea}, ${accuLocation.country}';
+    } else {
+      final openWeatherLocation = location as OpenWeatherLocation;
+      return '${openWeatherLocation.state.isNotEmpty ? '${openWeatherLocation.state}, ' : ''}${openWeatherLocation.country}';
+    }
+  }
+
   Widget _buildCurrentWeather() {
     final current = _currentConditions!;
-    final weatherIcon = current.weatherIcon;
-    final isDay = current.isDayTime;
+    final weatherIcon = _getWeatherIcon();
+    final isDay = _getIsDayTime();
+    final temperature = _getTemperature();
+    final weatherDescription = _getWeatherDescription();
     
     return Card(
       child: Padding(
@@ -266,14 +345,14 @@ class _WeatherDisplayScreenState extends State<WeatherDisplayScreen>
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        '${current.temperature.round()}°',
+                        '${temperature.round()}°',
                         style: Theme.of(context).textTheme.headlineLarge?.copyWith(
-                          color: WeatherIcons.getTemperatureColor(current.temperature),
+                          color: WeatherIcons.getTemperatureColor(temperature),
                           fontWeight: FontWeight.bold,
                         ),
                       ),
                       Text(
-                        WeatherIcons.getWeatherDescription(weatherIcon),
+                        weatherDescription,
                         style: Theme.of(context).textTheme.titleMedium?.copyWith(
                           color: Colors.grey.shade600,
                         ),
@@ -296,31 +375,73 @@ class _WeatherDisplayScreenState extends State<WeatherDisplayScreen>
     );
   }
 
-  Widget _buildWeatherDetails(CurrentConditions current) {
+  double _getTemperature() {
+    if (ApiManager.activeApiName == 'AccuWeather') {
+      return (_currentConditions as CurrentConditions).temperature;
+    } else {
+      return (_currentConditions as OpenWeatherCurrentConditions).temperature;
+    }
+  }
+
+  String _getWeatherDescription() {
+    if (ApiManager.activeApiName == 'AccuWeather') {
+      final weatherIcon = (_currentConditions as CurrentConditions).weatherIcon;
+      return WeatherIcons.getWeatherDescription(weatherIcon);
+    } else {
+      final weatherIcon = (_currentConditions as OpenWeatherCurrentConditions).weatherIcon;
+      return WeatherIcons.getWeatherDescription(weatherIcon);
+    }
+  }
+
+  Widget _buildWeatherDetails(dynamic current) {
     return Column(
       children: [
         _buildDetailRow(
           Icons.thermostat,
           'Hissedilen',
-          '${current.realFeelTemperature.round()}°',
-          WeatherIcons.getTemperatureColor(current.realFeelTemperature),
+          '${_getRealFeelTemperature().round()}°',
+          WeatherIcons.getTemperatureColor(_getRealFeelTemperature()),
         ),
         const SizedBox(height: 12),
         _buildDetailRow(
           Icons.water_drop,
           'Nem',
-          '%${current.relativeHumidity}',
+          '%${_getRelativeHumidity()}',
           Colors.blue,
         ),
         const SizedBox(height: 12),
         _buildDetailRow(
           Icons.air,
           'Rüzgar',
-          '${current.windSpeed.round()} km/h',
+          '${_getWindSpeed().round()} km/h',
           Colors.grey,
         ),
       ],
     );
+  }
+
+  double _getRealFeelTemperature() {
+    if (ApiManager.activeApiName == 'AccuWeather') {
+      return (_currentConditions as CurrentConditions).realFeelTemperature;
+    } else {
+      return (_currentConditions as OpenWeatherCurrentConditions).feelsLike;
+    }
+  }
+
+  int _getRelativeHumidity() {
+    if (ApiManager.activeApiName == 'AccuWeather') {
+      return (_currentConditions as CurrentConditions).relativeHumidity;
+    } else {
+      return (_currentConditions as OpenWeatherCurrentConditions).humidity;
+    }
+  }
+
+  double _getWindSpeed() {
+    if (ApiManager.activeApiName == 'AccuWeather') {
+      return (_currentConditions as CurrentConditions).windSpeed;
+    } else {
+      return (_currentConditions as OpenWeatherCurrentConditions).windSpeed;
+    }
   }
 
   Widget _buildDetailRow(IconData icon, String label, String value, Color color) {
@@ -376,9 +497,10 @@ class _WeatherDisplayScreenState extends State<WeatherDisplayScreen>
     );
   }
 
-  Widget _buildForecastCard(DailyForecast forecast) {
-    final dayIcon = forecast.dayWeatherIcon;
-    final nightIcon = forecast.nightWeatherIcon;
+  Widget _buildForecastCard(dynamic forecast) {
+    final dayIcon = _getDayWeatherIcon(forecast);
+    final nightIcon = _getNightWeatherIcon(forecast);
+    final date = _getForecastDate(forecast);
     
     return Card(
       margin: const EdgeInsets.only(bottom: 12),
@@ -394,14 +516,14 @@ class _WeatherDisplayScreenState extends State<WeatherDisplayScreen>
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        _formatDate(forecast.date),
+                        _formatDate(date),
                         style: Theme.of(context).textTheme.titleMedium?.copyWith(
                           color: AppTheme.primaryBlue,
                           fontWeight: FontWeight.w600,
                         ),
                       ),
                       Text(
-                        _formatDay(forecast.date),
+                        _formatDay(date),
                         style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                           color: Colors.grey.shade600,
                         ),
@@ -417,13 +539,13 @@ class _WeatherDisplayScreenState extends State<WeatherDisplayScreen>
                       _buildForecastItem(
                         WeatherIcons.getWeatherIcon(dayIcon, isDay: true),
                         'Gündüz',
-                        '${forecast.maxTemperature.round()}°',
+                        '${_getMaxTemperature(forecast).round()}°',
                         WeatherIcons.getWeatherColor(dayIcon, isDay: true),
                       ),
                       _buildForecastItem(
                         WeatherIcons.getWeatherIcon(nightIcon, isDay: false),
                         'Gece',
-                        '${forecast.minTemperature.round()}°',
+                        '${_getMinTemperature(forecast).round()}°',
                         WeatherIcons.getWeatherColor(nightIcon, isDay: false),
                       ),
                     ],
@@ -431,25 +553,25 @@ class _WeatherDisplayScreenState extends State<WeatherDisplayScreen>
                 ),
               ],
             ),
-            if (forecast.relativeHumidity != null || forecast.windSpeed != null) ...[
+            if (_getForecastHumidity(forecast) != null || _getForecastWindSpeed(forecast) != null) ...[
               const SizedBox(height: 12),
               const Divider(),
               const SizedBox(height: 8),
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                 children: [
-                  if (forecast.relativeHumidity != null)
+                  if (_getForecastHumidity(forecast) != null)
                     _buildDetailItem(
                       Icons.water_drop,
                       'Nem',
-                      '%${forecast.relativeHumidity}',
+                      '%${_getForecastHumidity(forecast)}',
                       Colors.blue,
                     ),
-                  if (forecast.windSpeed != null)
+                  if (_getForecastWindSpeed(forecast) != null)
                     _buildDetailItem(
                       Icons.air,
                       'Rüzgar',
-                      '${forecast.windSpeed!.round()} km/h',
+                      '${_getForecastWindSpeed(forecast)!.round()} km/h',
                       Colors.grey,
                     ),
                 ],
@@ -459,6 +581,62 @@ class _WeatherDisplayScreenState extends State<WeatherDisplayScreen>
         ),
       ),
     );
+  }
+
+  int _getDayWeatherIcon(dynamic forecast) {
+    if (ApiManager.activeApiName == 'AccuWeather') {
+      return (forecast as DailyForecast).dayWeatherIcon;
+    } else {
+      return (forecast as OpenWeatherDailyForecast).weatherIcon;
+    }
+  }
+
+  int _getNightWeatherIcon(dynamic forecast) {
+    if (ApiManager.activeApiName == 'AccuWeather') {
+      return (forecast as DailyForecast).nightWeatherIcon;
+    } else {
+      return (forecast as OpenWeatherDailyForecast).weatherIcon;
+    }
+  }
+
+  DateTime _getForecastDate(dynamic forecast) {
+    if (ApiManager.activeApiName == 'AccuWeather') {
+      return (forecast as DailyForecast).date;
+    } else {
+      return (forecast as OpenWeatherDailyForecast).date;
+    }
+  }
+
+  double _getMaxTemperature(dynamic forecast) {
+    if (ApiManager.activeApiName == 'AccuWeather') {
+      return (forecast as DailyForecast).maxTemperature;
+    } else {
+      return (forecast as OpenWeatherDailyForecast).maxTemperature;
+    }
+  }
+
+  double _getMinTemperature(dynamic forecast) {
+    if (ApiManager.activeApiName == 'AccuWeather') {
+      return (forecast as DailyForecast).minTemperature;
+    } else {
+      return (forecast as OpenWeatherDailyForecast).minTemperature;
+    }
+  }
+
+  int? _getForecastHumidity(dynamic forecast) {
+    if (ApiManager.activeApiName == 'AccuWeather') {
+      return (forecast as DailyForecast).relativeHumidity;
+    } else {
+      return (forecast as OpenWeatherDailyForecast).humidity;
+    }
+  }
+
+  double? _getForecastWindSpeed(dynamic forecast) {
+    if (ApiManager.activeApiName == 'AccuWeather') {
+      return (forecast as DailyForecast).windSpeed;
+    } else {
+      return (forecast as OpenWeatherDailyForecast).windSpeed;
+    }
   }
 
   Widget _buildForecastItem(IconData icon, String label, String temp, Color color) {
@@ -528,7 +706,7 @@ class _WeatherDisplayScreenState extends State<WeatherDisplayScreen>
     );
   }
 
-  Widget _buildHourlyCard(HourlyForecast forecast) {
+  Widget _buildHourlyCard(dynamic forecast) {
     return Card(
       margin: const EdgeInsets.only(right: 12),
       child: Container(
@@ -537,47 +715,113 @@ class _WeatherDisplayScreenState extends State<WeatherDisplayScreen>
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Text(
-              _formatHour(forecast.dateTime),
-              style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                color: Colors.grey.shade600,
-                fontWeight: FontWeight.w500,
+            Flexible(
+              child: Text(
+                _formatHour(_getHourlyDateTime(forecast)),
+                style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                  color: Colors.grey.shade600,
+                  fontWeight: FontWeight.w500,
+                ),
+                textAlign: TextAlign.center,
+                overflow: TextOverflow.ellipsis,
               ),
             ),
             const SizedBox(height: 8),
-            Icon(
-              WeatherIcons.getWeatherIcon(forecast.weatherIcon, isDay: forecast.isDayTime),
-              size: 32,
-              color: WeatherIcons.getWeatherColor(forecast.weatherIcon, isDay: forecast.isDayTime),
+            Flexible(
+              child: Icon(
+                WeatherIcons.getWeatherIcon(_getHourlyWeatherIcon(forecast), isDay: _getHourlyIsDayTime(forecast)),
+                size: 32,
+                color: WeatherIcons.getWeatherColor(_getHourlyWeatherIcon(forecast), isDay: _getHourlyIsDayTime(forecast)),
+              ),
             ),
             const SizedBox(height: 8),
-            Text(
-              '${forecast.temperature.round()}°',
-              style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                color: WeatherIcons.getTemperatureColor(forecast.temperature),
-                fontWeight: FontWeight.bold,
+            Flexible(
+              child: Text(
+                '${_getHourlyTemperature(forecast).round()}°',
+                style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                  color: WeatherIcons.getTemperatureColor(_getHourlyTemperature(forecast)),
+                  fontWeight: FontWeight.bold,
+                ),
+                textAlign: TextAlign.center,
+                overflow: TextOverflow.ellipsis,
               ),
             ),
             const SizedBox(height: 4),
-            Text(
-              '%${forecast.relativeHumidity}',
-              style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                color: Colors.blue,
-                fontWeight: FontWeight.w500,
+            Flexible(
+              child: Text(
+                '%${_getHourlyHumidity(forecast)}',
+                style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                  color: Colors.blue,
+                  fontWeight: FontWeight.w500,
+                ),
+                textAlign: TextAlign.center,
+                overflow: TextOverflow.ellipsis,
               ),
             ),
             const SizedBox(height: 2),
-            Text(
-              '${forecast.windSpeed.round()} km/h',
-              style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                color: Colors.grey,
-                fontWeight: FontWeight.w500,
+            Flexible(
+              child: Text(
+                '${_getHourlyWindSpeed(forecast).round()} km/h',
+                style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                  color: Colors.grey,
+                  fontWeight: FontWeight.w500,
+                ),
+                textAlign: TextAlign.center,
+                overflow: TextOverflow.ellipsis,
               ),
             ),
           ],
         ),
       ),
     );
+  }
+
+  DateTime _getHourlyDateTime(dynamic forecast) {
+    if (ApiManager.activeApiName == 'AccuWeather') {
+      return (forecast as HourlyForecast).dateTime;
+    } else {
+      return (forecast as OpenWeatherHourlyForecast).dateTime;
+    }
+  }
+
+  int _getHourlyWeatherIcon(dynamic forecast) {
+    if (ApiManager.activeApiName == 'AccuWeather') {
+      return (forecast as HourlyForecast).weatherIcon;
+    } else {
+      return (forecast as OpenWeatherHourlyForecast).weatherIcon;
+    }
+  }
+
+  bool _getHourlyIsDayTime(dynamic forecast) {
+    if (ApiManager.activeApiName == 'AccuWeather') {
+      return (forecast as HourlyForecast).isDayTime;
+    } else {
+      return (forecast as OpenWeatherHourlyForecast).isDayTime;
+    }
+  }
+
+  double _getHourlyTemperature(dynamic forecast) {
+    if (ApiManager.activeApiName == 'AccuWeather') {
+      return (forecast as HourlyForecast).temperature;
+    } else {
+      return (forecast as OpenWeatherHourlyForecast).temperature;
+    }
+  }
+
+  int _getHourlyHumidity(dynamic forecast) {
+    if (ApiManager.activeApiName == 'AccuWeather') {
+      return (forecast as HourlyForecast).relativeHumidity;
+    } else {
+      return (forecast as OpenWeatherHourlyForecast).humidity;
+    }
+  }
+
+  double _getHourlyWindSpeed(dynamic forecast) {
+    if (ApiManager.activeApiName == 'AccuWeather') {
+      return (forecast as HourlyForecast).windSpeed;
+    } else {
+      return (forecast as OpenWeatherHourlyForecast).windSpeed;
+    }
   }
 
   String _formatHour(DateTime dateTime) {
