@@ -272,6 +272,61 @@ String _getCityFromCoordinates(double lat, double lon) {
 4. Push yapın (`git push origin feature/amazing-feature`)
 5. Pull Request açın
 
+## 📚 Dokümantasyon
+
+### **Temel Dokümantasyon**
+- **[Quick Start Guide](QUICK_START.md)** - 5 dakikada kurulum rehberi
+- **[Development Notes](DEVELOPMENT_NOTES.md)** - Tüm geliştirme süreci ve teknik detaylar
+- **[Security Guide](SECURITY_GUIDE.md)** - Güvenlik rehberi ve production hazırlığı
+- **[Future Plans](FUTURE_PLANS.md)** - Gelecek planları ve öneriler
+- **[Contributing Guide](CONTRIBUTING.md)** - Katkıda bulunma rehberi
+- **[API Documentation](API_DOCUMENTATION.md)** - API detayları ve kullanım
+
+### **Hızlı Başlangıç**
+```bash
+# 1. Projeyi klonla
+git clone https://github.com/your-username/weather_forecast.git
+cd weather_forecast
+
+# 2. Bağımlılıkları yükle
+flutter pub get
+
+# 3. API anahtarlarını ayarla (lib/config/env.dart)
+# 4. Uygulamayı çalıştır
+flutter run
+```
+
+### **Önemli Dosyalar**
+- `lib/config/env.dart` - API konfigürasyonu
+- `lib/services/api_manager.dart` - Merkezi API yönetimi
+- `lib/providers/universal_weather_provider.dart` - State management
+- `lib/screens/` - UI ekranları
+- `lib/models/` - Veri modelleri
+
+## 🎯 Özellik Durumu
+
+### **✅ Tamamlanan Özellikler**
+- 🔐 API key güvenliği (config dosyası)
+- 🛡️ Kapsamlı hata yönetimi
+- 🎨 Modern UI/UX tasarımı
+- 🔄 Çift API desteği (AccuWeather + OpenWeatherMap)
+- 📍 Gelişmiş konum arama
+- 🧪 Unit ve widget test'ler
+- 📱 Responsive tasarım
+- 🌍 Türkçe arayüz
+
+### **🚧 Devam Eden Özellikler**
+- 🔐 Backend proxy kurulumu
+- 💾 Offline cache sistemi
+- 🔔 Push notifications
+- 📱 Widget desteği
+
+### **📋 Planlanan Özellikler**
+- 🎨 Dark mode
+- 🌐 Çoklu dil desteği
+- 🤖 AI tabanlı tahminler
+- 📊 Analytics sistemi
+
 ## 📄 Lisans
 
 Bu proje MIT lisansı altında lisanslanmıştır. Detaylar için `LICENSE` dosyasına bakın.
@@ -280,6 +335,8 @@ Bu proje MIT lisansı altında lisanslanmıştır. Detaylar için `LICENSE` dosy
 
 - **Proje Linki**: [https://github.com/your-username/weather_forecast](https://github.com/your-username/weather_forecast)
 - **Sorun Bildirimi**: [Issues](https://github.com/your-username/weather_forecast/issues)
+- **Geliştirme Notları**: [Development Notes](DEVELOPMENT_NOTES.md)
+- **Güvenlik Rehberi**: [Security Guide](SECURITY_GUIDE.md)
 
 ---
 
